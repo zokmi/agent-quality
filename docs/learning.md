@@ -76,6 +76,12 @@ node /path/to/agent-quality/bin/quality.mjs rollback-rule no-legacy-adapter
 
 State lives in the target project's `.agent-quality/` directory. Preserve the directory if you want the historical evidence and activation log to survive a workspace reset. Set `learning.enabled: false` to suspend collection and learned-rule enforcement for the project.
 
+### Keep active rules in project instructions
+
+Activation, deactivation and rollback refresh the managed section of `docs/agent-quality-rules.md` in the target project. The CLI adds a link to that document in the root `AGENTS.md` and preserves existing instructions and text outside the generated sections. The document lists only active, approved and validated versions. Each new validation saves one violation and one allowed example for publication when the version is activated. Review the fixtures for content suitable for sharing in the repository. Older approvals can be published by re-running `activate-rule` on their active version and may lack examples because earlier versions saved only fixture hashes.
+
+Commit the Markdown changes to share these instructions across sessions and checkouts. Syncing a rule preserves published entries whose IDs are absent from the local state. Keep the approval and history records in the local state directory to deactivate or roll back those published rules later.
+
 ## Read reports
 
 ```sh
