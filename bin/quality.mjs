@@ -7,6 +7,7 @@ import {select} from '../lib/selection.mjs';
 import {review} from '../lib/review.mjs';
 import {gate,formatGate} from '../lib/gate.mjs';
 import {dispatch} from '../lib/hooks.mjs';
+import {initialize} from '../lib/init.mjs';
 import * as learning from '../lib/learning.mjs';
 import {recordMetrics,qualityReport} from '../lib/metrics.mjs';
 
@@ -88,6 +89,7 @@ function main() {
   if (changed && !['select','gate'].includes(command)) throw new Error('--changed is available for select and gate');
   const files = changed ? [...new Set([...paths,...changedFiles(ctx)])] : paths;
   switch (command) {
+    case 'init': return initialize(ctx);
     case 'lint': return observe(ctx,'lint',lint(ctx,files),taskId);
     case 'fix-preview': return ctx.config.autoFix.enabled ? previewFix(ctx,files) : {status:'SKIPPED'};
     case 'fix-attempt':

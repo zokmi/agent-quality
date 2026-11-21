@@ -24,9 +24,31 @@ function project(t, config) {
 test('manifest, skills and hook discovery', () => {
   assert.equal(json(join(plugin,'.claude-plugin','plugin.json')).name,'agent-quality');
   const skills = readdirSync(join(plugin,'skills'));
-  assert.equal(skills.length,8);
+  assert.equal(skills.length,9);
   for (const skill of skills) assert.ok(readFileSync(join(plugin,'skills',skill,'SKILL.md'),'utf8').includes('name: '+skill+'\n'));
   assert.deepEqual(Object.keys(json(join(plugin,'hooks','hooks.json')).hooks),['PostToolUse','Stop']);
+});
+
+test('init discovers project tools and preserves existing configuration', t => {
+  const root = project(t);
+  writeFileSync(join(root,'package.json'),JSON.stringify({scripts:{test:'node --test'}}));
+  writeFileSync(join(root,'eslint.config.js'),'');
+  const result = call(root,['init']);
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(result.data.status,'CREATED');
+  const config = json(join(root,'.agent-quality.json'));
+  assert.deepEqual(config.qualityGate.required,['lint','unit']);
+  assert.deepEqual(config.qualityGate.commands.unit,['node','--test']);
+  const before = readFileSync(join(root,'.agent-quality.json'),'utf8');
+  assert.equal(call(root,['init']).data.status,'EXISTS');
+  assert.equal(readFileSync(join(root,'.agent-quality.json'),'utf8'),before);
+});
+
+test('init leaves checks without reliable tooling unconfigured', t => {
+  const root = project(t);
+  writeFileSync(join(root,'index.js'),'');
+  assert.equal(call(root,['init']).data.status,'CREATED');
+  assert.equal(json(join(root,'.agent-quality.json')).qualityGate.required,undefined);
 });
 test('gate fails for missing or failing BDD evidence', t => {
   const root = project(t,{qualityGate:{required:['bdd']}});

@@ -23,7 +23,7 @@ claude plugin validate "/path/to/agent-quality" --strict
 claude --plugin-dir "/path/to/agent-quality"
 ```
 
-在 Claude Code 輸入 `/agent-quality:` 即可查看 8 個技能。可在其他專案執行同一個載入指令。若要持續使用，可加入本機 marketplace 後安裝。
+在 Claude Code 輸入 `/agent-quality:` 即可查看 9 個技能。可在其他專案執行同一個載入指令。若要持續使用，可加入本機 marketplace 後安裝。
 
 ```sh
 claude plugin marketplace add "/path/to/agent-quality"
@@ -31,6 +31,14 @@ claude plugin install agent-quality@agent-quality-local
 ```
 
 ## 設定受測專案
+
+新專案安裝插件後，請在專案根目錄叫用 `init` 技能，或直接執行：
+
+```sh
+node "/path/to/agent-quality/bin/quality.mjs" init
+```
+
+`init` 會掃描專案的工具設定並建立 `.agent-quality.json`，回報偵測到的 linter 和待確認的檢查。若專案的 `test` 指令是 `node --test`，會自動填入單元測試命令。專案已有設定檔時會回傳 `EXISTS`。請依實際工具補上型別檢查、審查和 BDD 等必要項目。
 
 將下列範例存成專案根目錄的 `.agent-quality.json`，並依專案現有工具調整必要檢查與命令參數。
 
@@ -135,6 +143,7 @@ Pop-Location
 
 | 技能 | 用途 |
 | --- | --- |
+| `init` | 分析新專案並產生 `.agent-quality.json` |
 | `lint-guard` | 使用現有 lint 工具產生結構化診斷 |
 | `auto-fix` | 預覽修正、限制重試次數並驗證品質閘門 |
 | `quality-review` | 將 Superpowers 的審查結果轉成標準診斷格式 |
