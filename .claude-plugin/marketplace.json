@@ -1,0 +1,14 @@
+{
+  "name": "agent-quality-local",
+  "description": "Local marketplace for the agent-quality plugin.",
+  "owner": {
+    "name": "agent-quality contributors"
+  },
+  "plugins": [
+    {
+      "name": "agent-quality",
+      "source": "./",
+      "description": "Incremental software quality checks and project-local rule learning."
+    }
+  ]
+}

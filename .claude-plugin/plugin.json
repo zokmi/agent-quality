@@ -1,0 +1,8 @@
+{
+  "name": "agent-quality",
+  "version": "0.1.0",
+  "description": "Incremental quality checks, evidence-based gates and project-local rule learning.",
+  "author": {
+    "name": "agent-quality contributors"
+  }
+}
