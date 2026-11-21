@@ -69,6 +69,68 @@ CI 可執行相同的 `gate` 指令。所有必要檢查通過時回傳結束碼
 
 若要執行插件本身的測試，請在本儲存庫根目錄執行 `node --test`。
 
+## 插件如何運作
+
+1. **改完就檢查。** Claude Code 的 `PostToolUse` 在 `Write`、`Edit` 或 `MultiEdit` 完成後，使用專案現有的 linter 檢查變更檔案。內容與相關設定相同時可重用快取。發現問題時，Hook 會把規則、檔案、行號及訊息回傳給代理。
+2. **修正後重驗。** 支援的工具可提供安全修正預覽，由代理檢查後套用最小修改。同一問題預設最多嘗試 3 次。驗證會確認原始診斷已消除，再執行品質閘門。
+3. **結束前跑品質閘門。** 閘門依變更風險或 `.agent-quality.json` 的明確設定執行必要檢查，可包含測試、Superpowers 審查和既有 BDD 驗證。Claude Code 的 `Stop` Hook 遇到可自動處理的失敗時，最多要求代理再繼續一輪。CI 可獨立執行相同的 `gate` 指令。
+
+## 規則如何學習與生效
+
+插件依**診斷來源與規則 ID**歸類。同一任務的重試只算一次，預設同類問題出現在兩個不同任務後才列為候選，可用 `learning.minimumOccurrences` 調高門檻。Claude Code Hooks 使用會話 ID，從 CLI 執行時用 `--task` 標識任務。
+
+候選出現後，代理或維護者先確認共通根因，再建立有證據的提案。**每條新規則及新版本都必須提交人工審核。** 提交時附上根因、建議修正、重複診斷，以及應攔截和應放行的案例。驗證通過後，由維護者審查誤報與規則衝突。取得核准後才記錄審核人並啟用。規則可停用或回滾，紀錄和版本放在各專案自己的 `.agent-quality/`。
+
+內建執行器支援依副檔名比對區分大小寫的固定文字，註解與字串也可能命中。涉及語法、回歸測試或團隊指引的提案，由專案實作與審查。學習更新的是專案規則與流程，模型權重保持原樣。
+
+### 實例：阻止兩次被匯入的退役模組
+
+以下 PowerShell 範例使用全新的暫存專案。請在本儲存庫根目錄執行第一段，再於同一個 PowerShell 視窗繼續。它模擬兩次審查都發現 `legacy-adapter.js` 被匯入。
+
+```powershell
+$aqCli = (Resolve-Path './bin/quality.mjs').Path
+$aqExample = Join-Path ([IO.Path]::GetTempPath()) ('agent-quality-demo-' + [guid]::NewGuid())
+New-Item -ItemType Directory -Path $aqExample | Out-Null
+Push-Location $aqExample
+
+"import './legacy-adapter.js'" | Set-Content -Encoding ascii index.js
+$aqDiagnostic = '[{"source":"review","severity":"error","file":"index.js","line":1,"rule":"legacy-import","message":"Retired adapter imported"}]'
+$aqDiagnostic | node $aqCli collect --task review-101
+$aqDiagnostic | node $aqCli collect --task review-102
+$aqCandidate = @(node $aqCli proposals | ConvertFrom-Json)[0]
+$aqCandidate.occurrences  # 2
+
+@{
+  id = 'no-legacy-adapter'
+  title = 'Use the current adapter'
+  type = 'architecture'
+  signal = $aqCandidate.signal
+  rootCause = 'Two tasks copied the import from an obsolete example.'
+  fix = 'Use the current adapter entry point.'
+  matcher = @{ extensions = @('.js'); literal = "import './legacy-adapter.js'" }
+} | ConvertTo-Json -Depth 5 -Compress | node $aqCli propose
+
+$aqFixtures = @(
+  @{ extension = '.js'; text = "import './legacy-adapter.js'"; matches = $true }
+  @{ extension = '.js'; text = "import './current-adapter.js'"; matches = $false }
+)
+ConvertTo-Json -InputObject $aqFixtures -Compress | node $aqCli validate-rule no-legacy-adapter
+```
+
+驗證回傳 `passed: true` 後，將提案、兩次診斷和案例提交給維護者。**只有維護者實際核准後**，才執行下一段。將 `maintainer-name` 換成實際核准者。
+
+```powershell
+'{"approvedBy":"maintainer-name"}' | node $aqCli approve-rule no-legacy-adapter
+node $aqCli activate-rule no-legacy-adapter
+node $aqCli architecture -- index.js  # FAIL，回報 no-legacy-adapter
+
+node $aqCli rollback-rule no-legacy-adapter
+node $aqCli architecture -- index.js  # NOT_CONFIGURED，此範例沒有其他架構設定
+Pop-Location
+```
+
+第一次啟用的前一個狀態是「尚未啟用」，因此回滾後 `activeVersion` 會是 `null`，而 `index.js` 的內容保持原樣。
+
 ## 技能一覽
 
 | 技能 | 用途 |
