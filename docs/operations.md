@@ -2,7 +2,9 @@
 
 ## Hook lifecycle
 
-PostToolUse handles Write, Edit and MultiEdit. It validates the actual project file, records it for the session and returns a bounded diagnostic summary after lint. The nearest project configuration or Git worktree marker identifies the root. Supply Bash-created changes to the standalone CLI. Stop evaluates tracked files and requests one continuation for actionable automatic failures. It displays a notice for manual checks. `stop_hook_active` bounds the continuation. CI uses the standalone CLI for enforcement. Hooks run without new model sessions.
+Codex PostToolUse reads file paths from `apply_patch` events and lints the files that still exist. Stop runs the gate for the changed turn and requests one continuation for actionable failures. After that continuation it rechecks the gate and reports unresolved checks. One Codex turn counts as one learning task, so lint and Stop in the same turn do not inflate recurrence. Recurring candidates are added to lint feedback. UserPromptSubmit tells the agent which validated versions await a maintainer's explicit approval. The agent runs the version-checked approval and Markdown update after the maintainer approves in chat.
+
+Claude Code PostToolUse handles Write, Edit and MultiEdit and tracks changes by session. In either host, the nearest project configuration or Git worktree marker identifies the root. Track Bash-created changes using the standalone gate. CI also uses the standalone CLI for enforcement.
 
 The gate recognizes `lint`, `format`, `typeCheck`, `unit`, `integration`, `review`, `bdd` and `architecture`. Set `qualityGate.required` for a reproducible policy. Otherwise selection derives required checks from change risk. The `qualityGate.commands` map accepts argument arrays. An exact `{tests}` argument expands into selected test identifiers. When selection calls for the full suite, use a command without this placeholder. Missing checks are NOT_CONFIGURED. Unavailable execution, timeouts and unusable targeted selections are BLOCKED.
 

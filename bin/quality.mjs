@@ -128,6 +128,10 @@ function main() {
       return ctx.lock('rules',() => handler(ctx,files[0],input));
     }
     case 'activate-rule': return ctx.lock('rules',() => learning.activate(ctx,files[0]));
+    case 'approve-and-activate-rule': {
+      const input = readInput();
+      return ctx.lock('rules',() => learning.approveAndActivate(ctx,files[0],input));
+    }
     case 'deactivate-rule': return ctx.lock('rules',() => learning.deactivate(ctx,files[0]));
     case 'rollback-rule': return ctx.lock('rules',() => learning.rollback(ctx,files[0]));
     default: throw new Error('Expected a command. See README.md for usage.');

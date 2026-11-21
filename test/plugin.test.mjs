@@ -27,6 +27,9 @@ test('manifest, skills and hook discovery', () => {
   assert.equal(skills.length,9);
   for (const skill of skills) assert.ok(readFileSync(join(plugin,'skills',skill,'SKILL.md'),'utf8').includes('name: '+skill+'\n'));
   assert.deepEqual(Object.keys(json(join(plugin,'hooks','hooks.json')).hooks),['PostToolUse','Stop']);
+  const codex = json(join(plugin,'.codex-plugin','plugin.json'));
+  assert.equal(codex.version,json(join(plugin,'package.json')).version);
+  assert.deepEqual(Object.keys(json(join(plugin,codex.hooks)).hooks),['PostToolUse','Stop','UserPromptSubmit']);
 });
 
 test('init discovers project tools and preserves existing configuration', t => {
@@ -119,4 +122,54 @@ test('manual-only gate checks produce a Stop notice without extending the turn',
   const stop = call(root,['hook'],{...base,hook_event_name:'Stop'});
   assert.equal(stop.data.decision,undefined);
   assert.match(stop.data.systemMessage,/unit BLOCKED/);
+});
+
+test('Codex patch events run lint, surface recurrence, and gate the changed turn', t => {
+  const root = project(t,{
+    qualityGate:{required:['lint','unit'],hookCommands:true,commands:{
+      unit:[process.execPath,'-e','require("fs").writeFileSync("gate-ran","yes");process.exit(1)']
+    }}
+  });
+  mkdirSync(join(root,'node_modules','eslint','bin'),{recursive:true});
+  writeFileSync(join(root,'eslint.config.js'),'');
+  writeFileSync(join(root,'a.js'),'bad');
+  writeFileSync(join(root,'node_modules','eslint','bin','eslint.js'),`
+    const filePath = process.argv.at(-1);
+    console.log(JSON.stringify([{filePath,messages:[{severity:1,line:1,ruleId:'demo',message:'Warning'}]}]));
+  `);
+  const base = {cwd:root,session_id:'codex',turn_id:'first'};
+  const patch = {...base,hook_event_name:'PostToolUse',tool_name:'apply_patch',
+    tool_input:{command:'*** Begin Patch\n*** Update File: a.js\n@@\n-old\n+bad\n*** End Patch'}};
+  const first = call(root,['hook'],patch);
+  assert.match(first.data.hookSpecificOutput?.additionalContext ?? '', /"rule":"demo"/);
+  assert.deepEqual(call(root,['hook'],{...base,turn_id:'unrelated',hook_event_name:'Stop'}).data,{});
+  const stop = call(root,['hook'],{...base,hook_event_name:'Stop'});
+  assert.equal(stop.data.decision,'block');
+  assert.equal(readFileSync(join(root,'gate-ran'),'utf8'),'yes');
+  assert.deepEqual(call(root,['proposals']).data,[]);
+  const second = call(root,['hook'],{...patch,turn_id:'second'});
+  assert.match(second.data.hookSpecificOutput.additionalContext, /"occurrences":2/);
+  assert.equal(call(root,['proposals']).data.length,1);
+});
+
+test('Codex prompt hook surfaces pending versions and explicit versioned approval publishes memory', t => {
+  const root = project(t);
+  const id = 'no-old-api';
+  const draft = {id,type:'lint',title:'Avoid old API',rootCause:'Recurring stale example',
+    fix:'Use current API',matcher:{extensions:['.js'],literal:'oldApi()'}};
+  const input = {cwd:root,session_id:'codex',turn_id:'approval',hook_event_name:'UserPromptSubmit',prompt:'I approve'};
+  call(root,['propose'],draft);
+  assert.deepEqual(call(root,['hook'],input).data,{});
+  const fixtures = [{text:'oldApi()',matches:true},{text:'currentApi()',matches:false}];
+  call(root,['validate-rule',id],fixtures);
+  assert.match(call(root,['hook'],input).data.hookSpecificOutput.additionalContext,/"version":1/);
+  assert.throws(() => readFileSync(join(root,'docs','agent-quality-rules.md')), {code:'ENOENT'});
+  call(root,['propose'],draft);
+  call(root,['validate-rule',id],fixtures);
+  assert.equal(call(root,['approve-and-activate-rule',id],{version:1,approvedBy:'maintainer'}).status,1);
+  const result = call(root,['approve-and-activate-rule',id],{version:2,approvedBy:'maintainer'});
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(result.data.activeVersion,2);
+  assert.deepEqual(call(root,['hook'],input).data,{});
+  assert.match(readFileSync(join(root,'docs','agent-quality-rules.md'),'utf8'),/Version 2/);
 });

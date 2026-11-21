@@ -8,7 +8,7 @@
     {
       "name": "agent-quality",
       "source": "./",
-      "description": "Incremental software quality checks and project-local rule learning."
+      "description": "Check project coding standards and preserve maintainer-approved rules as project documentation."
     }
   ]
 }

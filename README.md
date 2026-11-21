@@ -1,6 +1,10 @@
 # agent-quality
 
-可跨專案使用的程式碼品質工具，提供增量 lint、回歸驗證、架構邊界檢查與專案內的規則學習。請將 Node.js 20 以上版本加入 `PATH`。本插件無 npm 依賴。
+**檢查、維護並傳承專案的程式碼規範。** `agent-quality` 使用專案既有的 linter 與架構設定，檢查程式碼風格、程式碼慣例及模組依賴邊界。適用的測試和審查結果由品質閘門彙整，供開發代理和 CI 判斷變更是否符合專案設定的要求。
+
+反覆出現的工程問題會列為候選。維護者核准特定版本並啟用後，插件將規範、理由及可用的正反例寫入受測專案的 `docs/agent-quality-rules.md`，由根目錄的 `AGENTS.md` 指向它，供後續開發讀取。典型規範包括「domain 層禁止依賴 adapters」和「新程式碼禁止匯入已退役的 adapter」。業務規則與產品驗收由專案的業務知識與 BDD 流程維護。
+
+請將 Node.js 20 以上版本加入 `PATH`。本插件無 npm 依賴。
 
 ## 安裝 Codex 插件
 
@@ -12,7 +16,9 @@ codex plugin add agent-quality@agent-quality-local
 codex plugin list --marketplace agent-quality-local
 ```
 
-安裝後開啟新的 Codex 對話即可使用插件。下方的命令列用法可在受測專案中獨立執行。自動 Hooks 的端對端驗證使用 Claude Code。[OpenAI 插件文件](https://developers.openai.com/plugins/build/plugins)
+安裝後，在 Codex 的 **Settings → Hooks** 或對話輸入區的 **Review hooks** 審閱並信任插件 Hooks，然後開啟新對話。使用 Codex 編輯工具改檔後會自動 lint，有變更的回合結束前會跑品質閘門。若可信任專案需要讓 Hook 執行設定中的測試等命令，請在其 `.agent-quality.json` 將 `qualityGate.hookCommands` 設為 `true`。專案設定可請 Codex 透過 `init` 技能建立。
+
+重複診斷會自動列為候選。Codex 可依 `rule-learning` 技能準備提案與案例，維護者在對話中明確核准該規則版本後，由 Codex 執行啟用並更新 `docs/agent-quality-rules.md`。Shell 或外部編輯器的任意寫檔目前不會觸發這個改檔 Hook。下方 CLI 也可獨立在受測專案或 CI 執行。[OpenAI 插件文件](https://developers.openai.com/plugins/build/plugins)
 
 ## 安裝 Claude Code 插件
 
