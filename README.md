@@ -79,7 +79,7 @@ CI 可執行相同的 `gate` 指令。所有必要檢查通過時回傳結束碼
 
 插件依**診斷來源與規則 ID**歸類。同一任務的重試只算一次，預設同類問題出現在兩個不同任務後才列為候選，可用 `learning.minimumOccurrences` 調高門檻。Claude Code Hooks 使用會話 ID，從 CLI 執行時用 `--task` 標識任務。
 
-候選出現後，代理或維護者先確認共通根因，再建立有證據的提案。**每條新規則及新版本都必須提交人工審核。** 提交時附上根因、建議修正、重複診斷，以及應攔截和應放行的案例。驗證通過後，由維護者審查誤報與規則衝突。取得核准後才記錄審核人並啟用。規則可停用或回滾，紀錄和版本放在各專案自己的 `.agent-quality/`。
+候選出現後，代理或維護者先確認共通根因，再建立有證據的提案。**由學習機制新增的 lint 規則，必須提交人工審核，取得維護者確認後才能啟用。** 提交時附上根因、重複診斷，以及應攔截和應放行的案例。維護者可據此檢查誤報與規則衝突。專案既有的 lint 規則照常執行。已啟用的學習規則可停用或回滾，紀錄和版本放在各專案自己的 `.agent-quality/`。
 
 內建執行器支援依副檔名比對區分大小寫的固定文字，註解與字串也可能命中。涉及語法、回歸測試或團隊指引的提案，由專案實作與審查。學習更新的是專案規則與流程，模型權重保持原樣。
 
@@ -103,7 +103,7 @@ $aqCandidate.occurrences  # 2
 @{
   id = 'no-legacy-adapter'
   title = 'Use the current adapter'
-  type = 'architecture'
+  type = 'lint'
   signal = $aqCandidate.signal
   rootCause = 'Two tasks copied the import from an obsolete example.'
   fix = 'Use the current adapter entry point.'
@@ -129,7 +129,7 @@ node $aqCli architecture -- index.js  # NOT_CONFIGURED，此範例沒有其他�
 Pop-Location
 ```
 
-第一次啟用的前一個狀態是「尚未啟用」，因此回滾後 `activeVersion` 會是 `null`，而 `index.js` 的內容保持原樣。
+範例使用 `architecture` 查看內建學習規則產生的診斷。第一次啟用的前一個狀態是「尚未啟用」，因此回滾後 `activeVersion` 會是 `null`。
 
 ## 技能一覽
 
